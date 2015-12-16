@@ -1,7 +1,7 @@
 #This is a special custom crazyflie firmware created and built by me
 
 The changes are 
-1. There are multiple options for controllers. Setting the nl_controller t0
+1. There are multiple options for controllers. Setting the nl_controller to  
 	a. 0 - Normal PIC Controller
 	b. 1 - Non Linear Controller described here - http://www.math.ucsd.edu/~mleok/pdf/LeLeMc2011_nrtc.pdf
 	c. 2 - A BackStepping Controller described here - http://dar.aucegypt.edu/bitstream/handle/10526/3965/Heba_ElKholy_Thesis_S2014.pdf?sequence=1
