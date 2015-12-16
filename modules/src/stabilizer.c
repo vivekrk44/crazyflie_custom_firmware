@@ -41,6 +41,8 @@
 #include "pid.h"
 #include "param.h"
 #include "sitaw.h"
+#include "debug.h"
+#include "nl_controller.h"
 #ifdef PLATFORM_CF1
   #include "ms5611.h"
 #else
@@ -58,6 +60,7 @@
  * control loop run relative the rate control loop.
  */
 #define ATTITUDE_UPDATE_RATE_DIVIDER  2
+
 #define FUSION_UPDATE_DT  (float)(1.0 / (IMU_UPDATE_FREQ / ATTITUDE_UPDATE_RATE_DIVIDER)) // 250hz
 
 // Barometer/ Altitude hold stuff
@@ -146,6 +149,14 @@ uint32_t motorPowerM4;  // Motor 4 power output (16bit value used: 0 - 65535)
 
 static bool isInit;
 
+//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+static uint16_t useNL = 0;
+static uint16_t setMO = 1;
+int mulAN = 3;
+uint16_t requiredThrust;
+#define POSITION_UPDATE_RATE_DIVIDER  15
+uint16_t op[4];
+//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 static void stabilizerAltHoldUpdate(void);
 static void stabilizerRotateYaw(float yawRad);
@@ -237,11 +248,42 @@ static void stabilizerTask(void* param)
   RPYType pitchType;
   RPYType yawType;
   uint32_t attitudeCounter = 0;
+  uint32_t positionCounter = 0;//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!//
   uint32_t altHoldCounter = 0;
   uint32_t lastWakeTime;
   float yawRateAngle = 0;
-
+  init_nl_controller();
+  DEBUG_PRINT("Got nl init");
   vTaskSetApplicationTaskTag(0, (void*)TASK_STABILIZER_ID_NBR);
+
+  state pos;
+  state vel;
+  state acl;
+  state ppos;
+  state pvel;
+  state dest;
+
+  ppos.x = 0.0;
+  ppos.y = 0.0;
+  ppos.z = 0.0;
+
+  pos.x = 0.0;
+  pos.y = 0.0;
+  pos.z = 0.0;
+
+  pvel.x = 0.0;
+  pvel.y = 0.0;
+  pvel.z = 0.0;
+
+  vel.x = 0.0;
+  vel.y = 0.0;
+  vel.z = 0.0;
+
+  acl.x = 0.0;
+  acl.y = 0.0;
+  acl.z = 0.0;
+
+  uint16_t m_thrust = 0.0;
 
   //Wait for the system to be fully started to start stabilization loop
   systemWaitStart();
@@ -277,6 +319,15 @@ static void stabilizerTask(void* param)
         sensfusion6UpdateQ(gyro.x, gyro.y, gyro.z, acc.x, acc.y, acc.z, FUSION_UPDATE_DT);
         sensfusion6GetEulerRPY(&eulerRollActual, &eulerPitchActual, &eulerYawActual);
 
+        if(useNL)
+        {
+        	float ang_def = mulAN*M_PI/4;
+        	float a = eulerRollActual;
+        	float b = eulerPitchActual;
+        	eulerRollActual = (cos(ang_def)*a + -sin(ang_def)*b);
+        	eulerPitchActual = (sin(ang_def)*a + cos(ang_def)*b);
+        }
+
         accWZ = sensfusion6GetAccZWithoutGravity(acc.x, acc.y, acc.z);
         accMAG = (acc.x*acc.x) + (acc.y*acc.y) + (acc.z*acc.z);
         // Estimate speed from acc (drifts)
@@ -285,9 +336,62 @@ static void stabilizerTask(void* param)
         // Adjust yaw if configured to do so
         stabilizerYawModeUpdate();
 
-        controllerCorrectAttitudePID(eulerRollActual, eulerPitchActual, eulerYawActual,
-                                     eulerRollDesired, eulerPitchDesired, -eulerYawDesired,
-                                     &rollRateDesired, &pitchRateDesired, &yawRateDesired);
+        if ((++positionCounter >= POSITION_UPDATE_RATE_DIVIDER) && (commanderGetCmdType() == 1))
+        {
+        	commanderGetXYZA(&pos.x, &pos.y, &pos.z, &eulerYawActual);
+        	commanderGetDest(&dest.x, &dest.y, &dest.z, &eulerYawDesired);
+        	sensorfusionGetcurrXYZ(&pos, &vel, &acl, &ppos, &pvel, eulerRollActual, eulerPitchActual, eulerYawActual, 1.0/33.3f);
+        	int cur_stat = commanderGetState();
+        	switch(cur_stat)
+        	{
+        		case 1: //Takeoff
+
+        			if (pos.z > 0.05 || m_thrust > 50000)
+        			{
+        				controllerResetPosPID();
+        				controllerSetZOffset(m_thrust);
+        				commanderSetState(5); //Automatic
+        				m_thrust = 0;
+        			}
+        			else
+        			{
+        				m_thrust += (10000 * (1/33.3f));
+        				requiredThrust = m_thrust;
+        				eulerRollDesired = 0.0;
+        				eulerPitchDesired = 0.0;
+        				eulerYawDesired = eulerYawActual;
+        			}
+        			break;
+
+        		case 2: //Landing
+        			dest.z = 0.05;
+        			if (pos.z < dest.z)
+        			{
+        				commanderSetState(3); // Stop Motors
+        			}
+        		case 5:
+        			controllerCorrectPositionPID(pos.x, pos.y, pos.z,
+        			        			         dest.x, dest.y, dest.z,
+        										 &eulerRollDesired, &eulerPitchDesired, &requiredThrust);
+        			float t1, t2;
+        			t1 = (eulerRollDesired * cos(eulerYawActual*M_PI/180)) - (eulerPitchDesired * sin(eulerYawActual*M_PI/180));
+        			t2 = (eulerRollDesired * sin(eulerYawActual*M_PI/180)) + (eulerPitchDesired * cos(eulerYawActual*M_PI/180));
+        			//TODO Check rotation matrix output
+        			eulerRollDesired = t1;
+        			eulerPitchDesired = t2;
+        			break;
+
+        		case 3: //Emergency
+        			requiredThrust = 0;
+        			break;
+
+
+        		default:
+        			break;
+        	}
+        	positionCounter = 0;
+
+        }
         attitudeCounter = 0;
 
         /* Call out after performing attitude updates, if any functions would like to use the calculated values. */
@@ -319,7 +423,10 @@ static void stabilizerTask(void* param)
       if (!altHold || !imuHasBarometer())
       {
         // Use thrust from controller if not in altitude hold mode
-        commanderGetThrust(&actuatorThrust);
+    	if(commanderGetCmdType() == 1)
+    		actuatorThrust = requiredThrust;
+    	else
+    		commanderGetThrust(&actuatorThrust, gyro.z);
       }
       else
       {
@@ -339,7 +446,41 @@ static void stabilizerTask(void* param)
 #elif defined(TUNE_YAW)
         distributePower(actuatorThrust, 0, 0, -actuatorYaw);
 #else
-        distributePower(actuatorThrust, actuatorRoll, actuatorPitch, -actuatorYaw);
+        if(useNL >0)
+        {
+        	double data_send[10];
+        	data_send[0] = eulerRollDesired * 3.1418 / 180.0f;
+        	data_send[1] = eulerPitchDesired * 3.1418 / 180.0f;
+        	data_send[2] = -eulerYawDesired * 3.1418 / 180.0f ;//40.0 * 3.1418 / 180.0f;
+
+        	data_send[3] = eulerRollActual * 3.1418 / 180.0f;
+        	data_send[4] = eulerPitchActual * 3.1418 / 180.0f;
+        	data_send[5] = eulerYawActual * 3.1418 / 180.0f;
+
+        	data_send[6] = gyro.x * 3.1418 / 180.0f;
+        	data_send[7] = gyro.y * 3.1418 / 180.0f;
+        	data_send[8] = gyro.z * 3.1418 / 180.0f;
+
+        	data_send[9] = 1.0/500.0f;
+
+        	if(useNL==1)
+        		attitude_controller(actuatorThrust, data_send[0], data_send[1], data_send[2], data_send[3], data_send[4], data_send[5], data_send[6], data_send[7], data_send[8], data_send[9],op);
+        	if(useNL==2)
+        		attitude_control_bs(actuatorThrust, data_send[0], data_send[1], data_send[2], data_send[3], data_send[4], data_send[5], data_send[6], data_send[7], data_send[8], data_send[9],op);
+        	if(setMO)
+        	{
+        		motorsSetRatio(MOTOR_M1, op[0]);
+        		motorsSetRatio(MOTOR_M2, op[1]);
+        		motorsSetRatio(MOTOR_M3, op[2]);
+        		motorsSetRatio(MOTOR_M4, op[3]);
+        	}
+        	motorPowerM1 = op[0];
+        	motorPowerM2 = op[1];
+        	motorPowerM3 = op[2];
+			motorPowerM4 = op[3];
+        }
+        else
+        	distributePower(actuatorThrust, actuatorRoll, actuatorPitch, -actuatorYaw);
 #endif
       }
       else
@@ -561,10 +702,10 @@ static void stabilizerYawModeUpdate(void)
   switch (commanderGetYawMode())
   {
     case CAREFREE:
-      stabilizerRotateYawCarefree(commanderGetYawModeCarefreeResetFront());
+      //stabilizerRotateYawCarefree(commanderGetYawModeCarefreeResetFront());
       break;
     case PLUSMODE:
-      stabilizerRotateYaw(45 * M_PI / 180);
+      //stabilizerRotateYaw(45 * M_PI / 180);
       break;
     case XMODE: // Fall though
     default:
@@ -590,11 +731,13 @@ static void distributePower(const uint16_t thrust, const int16_t roll,
   motorPowerM3 =  limitThrust(thrust - pitch + yaw);
   motorPowerM4 =  limitThrust(thrust + roll - yaw);
 #endif
-
-  motorsSetRatio(MOTOR_M1, motorPowerM1);
-  motorsSetRatio(MOTOR_M2, motorPowerM2);
-  motorsSetRatio(MOTOR_M3, motorPowerM3);
-  motorsSetRatio(MOTOR_M4, motorPowerM4);
+  if(setMO)
+  {
+	  motorsSetRatio(MOTOR_M1, motorPowerM1);
+	  motorsSetRatio(MOTOR_M2, motorPowerM2);
+	  motorsSetRatio(MOTOR_M3, motorPowerM3);
+	  motorsSetRatio(MOTOR_M4, motorPowerM4);
+  }
 }
 
 static uint16_t limitThrust(int32_t value)
@@ -726,6 +869,12 @@ PARAM_ADD(PARAM_UINT16, baseThrust, &altHoldBaseThrust)
 PARAM_ADD(PARAM_UINT16, maxThrust, &altHoldMaxThrust)
 PARAM_ADD(PARAM_UINT16, minThrust, &altHoldMinThrust)
 PARAM_GROUP_STOP(altHold)
+
+PARAM_GROUP_START(controllerNL)
+PARAM_ADD(PARAM_UINT16, enable, &useNL)
+PARAM_ADD(PARAM_UINT16, motors, &setMO)
+PARAM_ADD(PARAM_INT16, angMult, &mulAN)
+PARAM_GROUP_STOP(controllerNL)
 
 #if defined(SITAW_ENABLED)
 // Automatic take-off parameters

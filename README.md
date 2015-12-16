@@ -1,3 +1,27 @@
+#This is a special custom crazyflie firmware created and built by me
+
+The changes are 
+1. There are multiple options for controllers. Setting the nl_controller t0
+	a. 0 - Normal PIC Controller
+	b. 1 - Non Linear Controller described here - http://www.math.ucsd.edu/~mleok/pdf/LeLeMc2011_nrtc.pdf
+	c. 2 - A BackStepping Controller described here - http://dar.aucegypt.edu/bitstream/handle/10526/3965/Heba_ElKholy_Thesis_S2014.pdf?sequence=1
+Note - These new controllers have not been tuned properly, hence do not work
+
+2. Initial Support for DWM1000 Chip. It uses the libraries distributed by the manufacturer. Can read registers and stuff. No protocol implemented yet. (Found in SPI1.c in Drivers and DWM .c in hal)
+
+3. Support for Futaba SBUS. Needs an external invberter connected to the input pin (Found in uart1.c in Drivers). This can be used for controlling the crazyflie as well.
+ 
+4. Supporting mods for sending position setpoints and current position for internal positon hold. 
+	a. Port 0x06 - Current Position
+	b. Port 0x07 - Destination Position
+	c. Port 0x08 - Current State like position hold attitude mode etc.
+
+5. The crazyflie will start positon mode if yawed aggresively.
+
+6. Other things I might have forgotten
+
+
+
 # Crazyflie 1.0/2.0 Firmware  [![Build Status](https://api.travis-ci.org/bitcraze/crazyflie-firmware.svg)](https://travis-ci.org/bitcraze/crazyflie-firmware)
 
 This project contains the source code for the Crazyflie 1.0/2.0 firmware. 

@@ -245,6 +245,67 @@ void sensfusion6GetEulerRPY(float* roll, float* pitch, float* yaw)
   *roll = atan2f(gy, gz) * 180 / M_PI_F;
 }
 
+void sensorfusionGetcurrXYZ(state* pos, state* vel, state* acc, state* ppos, state* pvel, float roll, float pitch, float yaw, float dt)
+{
+	//vel->x = (pos->x - ppos->x)/dt;
+	//
+	vel->z = (pos->z - ppos->z)/dt;
+
+	//acc->x = (vel->x - pvel->x)/dt;
+	//acc->y = (vel->y - pvel->y)/dt;
+	acc->z = (vel->z - pvel->z)/dt;
+
+	//ppos->x = pos->x;
+	//ppos->y = pos->y;
+	ppos->z = pos->z;
+
+	//pvel->x = vel->x;
+	//pvel->y = vel->y;
+	pvel->z = vel->z;
+
+	vel->x = (pos->x - ppos->x)/dt;
+	vel->y = (pos->y - ppos->y)/dt;
+
+	if (vel->x != 0.0 && vel->y != 0)
+	{
+		//vel->x = (pos->x - ppos->x)/dt;
+		//vel->y = (pos->y - ppos->y)/dt;
+
+		acc->x = (vel->x - pvel->x)/dt;
+		acc->y = (vel->y - pvel->y)/dt;
+
+		ppos->x = pos->x;
+		ppos->y = pos->y;
+
+		pvel->x = vel->x;
+		pvel->y = vel->y;
+	}
+	else
+	{
+		float r = 0;
+		float p = 0;
+
+		r = roll * cos((-yaw)*M_PI/180.0f) - pitch * sin((-yaw)*M_PI/180.0f);
+		p = roll * sin((-yaw)*M_PI/180.0f) + pitch * cos((-yaw)*M_PI/180.0f);
+
+		pos->x = ppos->x + (pvel->x * dt) + (0.5 * dt * dt * (acc->z + 9.8) * tan(p*M_PI/180.0f));
+		pos->y = ppos->y + (pvel->y * dt) + (0.5 * dt * dt * (acc->z + 9.8) * tan(r*M_PI/180.0f));
+
+		vel->x = (pos->x - ppos->x)/dt;
+		vel->y = (pos->y - ppos->y)/dt;
+
+		acc->x = (vel->x - pvel->x)/dt;
+		acc->y = (vel->y - pvel->y)/dt;
+
+		ppos->x = pos->x;
+		ppos->y = pos->y;
+
+		pvel->x = vel->x;
+		pvel->y = vel->y;
+	}
+
+}
+
 float sensfusion6GetAccZWithoutGravity(const float ax, const float ay, const float az)
 {
   float gx, gy, gz; // estimated gravity direction

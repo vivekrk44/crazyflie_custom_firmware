@@ -44,6 +44,9 @@ typedef enum {
   CRTP_PORT_LOG         = 0x05,
   CRTP_PORT_PLATFORM    = 0x0D,
   CRTP_PORT_LINK        = 0x0F,
+  CRTP_PORT_MCPOSE      = 0x06,
+  CRTP_PORT_DTPOSE      = 0x07,
+  CRTP_PORT_STATE       = 0x08
 } CRTPPort;
 
 typedef struct _CRTPPacket

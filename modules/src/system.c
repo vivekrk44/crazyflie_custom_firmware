@@ -57,6 +57,7 @@
 #include "proximity.h"
 #include "watchdog.h"
 #include "queuemonitor.h"
+#include "dwm.h"
 
 #ifdef PLATFORM_CF2
 #include "deck.h"
@@ -139,7 +140,8 @@ void systemTask(void *arg)
   queueMonitorInit();
 #endif
 
-  uartInit();
+uartInit();
+dwm_init();
 #ifdef ENABLE_UART1
   uart1Init();
 #endif

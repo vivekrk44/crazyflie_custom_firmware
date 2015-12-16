@@ -142,6 +142,8 @@
 #define RADIO_DATARATE RADIO_RATE_250K
 #define RADIO_ADDRESS 0xE7E7E7E7E7ULL
 
+#define ENABLE_UART1
+
 /**
  * \def ACTIVATE_AUTO_SHUTDOWN
  * Will automatically shot of system if no radio activity

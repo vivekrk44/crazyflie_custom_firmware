@@ -29,6 +29,7 @@
 
 #include "nvicconf.h"
 #include "nrf24l01.h"
+#include "deca_device_api.h"
 
 #ifdef PLATFORM_CF1
   #define RADIO_GPIO_IRQ_LINE   EXTI_Line9
@@ -78,6 +79,11 @@ void __attribute__((used)) EXTI15_10_IRQHandler(void)
   if (EXTI_GetITStatus(RADIO_GPIO_IRQ_LINE) == SET)
   {
     EXTI_ClearITPendingBit(RADIO_GPIO_IRQ_LINE);
+  }
+  if (EXTI_GetITStatus(EXTI_Line12) == SET)
+  {
+	  dwt_isr();
+	  EXTI_ClearITPendingBit(EXTI_Line12);
   }
 }
 #endif

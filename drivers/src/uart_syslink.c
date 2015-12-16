@@ -355,11 +355,6 @@ void __attribute__((used)) USART2_IRQHandler(void)
   uartIsr();
 }
 
-void __attribute__((used)) UART4_IRQHandler(void)
-{
-  uartIsr();
-}
-
 void __attribute__((used)) USART6_IRQHandler(void)
 {
   uartIsr();

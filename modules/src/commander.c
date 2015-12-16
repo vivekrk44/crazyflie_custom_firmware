@@ -23,6 +23,7 @@
  *
  *
  */
+#include <stdint.h>
 #include "FreeRTOS.h"
 #include "task.h"
 
@@ -30,6 +31,9 @@
 #include "crtp.h"
 #include "configblock.h"
 #include "param.h"
+#include "uart1.h"
+
+#include <math.h>
 
 #define MIN_THRUST  1000
 #define MAX_THRUST  60000
@@ -42,14 +46,44 @@ struct CommanderCrtpValues
   uint16_t thrust;
 } __attribute__((packed));
 
+struct MocapCrtp
+{
+	float x;
+	float y;
+	float z;
+	float a;
+} __attribute__((packed));
+
+struct DestCrtp
+{
+	float x;
+	float y;
+	float z;
+	float a;
+} __attribute__((packed));
+
+struct StateCrtp
+{
+	int curStat;
+};
+
 static struct CommanderCrtpValues targetVal[2];
+static struct MocapCrtp mocapPose[2];
+static struct DestCrtp destPose[2];
+static struct StateCrtp Cstat[2];
 static bool isInit;
 static int side=0;
+static int mc_side = 0;
+static int dt_side = 0;
+static int st_side = 0;
+static int rf_update = 0;
+static int state_curent = 0;
 static uint32_t lastUpdate;
 static bool isInactive;
 static bool thrustLocked;
 static bool altHoldMode = false;
 static bool altHoldModeOld = false;
+static uint16_t thrst;
 
 static RPYType stabilizationModeRoll  = ANGLE; // Current stabilization type of roll (rate or angle)
 static RPYType stabilizationModePitch = ANGLE; // Current stabilization type of pitch (rate or angle)
@@ -58,9 +92,15 @@ static RPYType stabilizationModeYaw   = RATE;  // Current stabilization type of 
 static YawModeType yawMode = DEFUALT_YAW_MODE; // Yaw mode configuration
 static bool carefreeResetFront;             // Reset what is front in carefree mode
 
+static cmdType cmdMode = ATTI;
 
 static void commanderCrtpCB(CRTPPacket* pk);
+static void mocapCrtpCB(CRTPPacket* pk);
+static void destCrtpCB(CRTPPacket* pk);
+static void stateCrtpCB(CRTPPacket* pk);
 static void commanderWatchdogReset(void);
+
+static uint8_t start;
 
 void commanderInit(void)
 {
@@ -70,6 +110,9 @@ void commanderInit(void)
 
   crtpInit();
   crtpRegisterPortCB(CRTP_PORT_COMMANDER, commanderCrtpCB);
+  crtpRegisterPortCB(CRTP_PORT_MCPOSE, mocapCrtpCB);
+  crtpRegisterPortCB(CRTP_PORT_DTPOSE, destCrtpCB);
+  crtpRegisterPortCB(CRTP_PORT_STATE, stateCrtpCB);
 
   lastUpdate = xTaskGetTickCount();
   isInactive = true;
@@ -83,11 +126,36 @@ bool commanderTest(void)
   return isInit;
 }
 
+static void mocapCrtpCB(CRTPPacket* pk)
+{
+	mocapPose[!mc_side] = *((struct MocapCrtp*)pk->data);
+	mc_side = !mc_side;
+	rf_update = 1;
+	commanderWatchdogReset();
+}
+
+static void destCrtpCB(CRTPPacket* pk)
+{
+	destPose[!dt_side] = *((struct DestCrtp*)pk->data);
+	dt_side = !dt_side;
+	cmdMode = POSI;
+	rf_update = 1;
+	commanderWatchdogReset();
+}
+
+static void stateCrtpCB(CRTPPacket* pk)
+{
+	Cstat[!st_side] = *((struct StateCrtp*)pk->data);
+	state_curent = Cstat[!st_side].curStat;
+	st_side = !st_side;
+}
+
 static void commanderCrtpCB(CRTPPacket* pk)
 {
   targetVal[!side] = *((struct CommanderCrtpValues*)pk->data);
   side = !side;
-
+  cmdMode = ATTI;
+  rf_update = 1;
   if (targetVal[side].thrust == 0) {
     thrustLocked = false;
   }
@@ -134,10 +202,59 @@ uint32_t commanderGetInactivityTime(void)
 void commanderGetRPY(float* eulerRollDesired, float* eulerPitchDesired, float* eulerYawDesired)
 {
   int usedSide = side;
+  if(rf_update == 1)
+  {
+	  *eulerRollDesired  = targetVal[usedSide].roll;
+	  *eulerPitchDesired = targetVal[usedSide].pitch;
+	  *eulerYawDesired   = targetVal[usedSide].yaw;
+	  thrst              = targetVal[usedSide].thrust;
+  }
+  else
+  {
+	  if(getSBusUpdate() == 1)
+	  {
+		  float pi, ro, ya;
+		  getSBusVals(&ro, &pi, &ya, &thrst);
+		  *eulerPitchDesired = pi;
+		  *eulerRollDesired = ro;
+		  *eulerYawDesired = ya;
+		  setSBusUpdate(0);
+		  commanderWatchdogReset();
+	  }
+  }
+  rf_update = 0;
+}
 
-  *eulerRollDesired  = targetVal[usedSide].roll;
-  *eulerPitchDesired = targetVal[usedSide].pitch;
-  *eulerYawDesired   = targetVal[usedSide].yaw;
+void commanderGetXYZA(float* x, float* y, float* z, float* a)
+{
+	int usedside = mc_side;
+
+	*x = mocapPose[usedside].x;
+	*y = mocapPose[usedside].y;
+	*z = mocapPose[usedside].z;
+	*a = mocapPose[usedside].a;
+}
+
+void commanderGetDest(float* x, float* y, float* z, float* a)
+{
+	int usedside = dt_side;
+
+	*x = destPose[usedside].x;
+	*y = destPose[usedside].y;
+	*z = destPose[usedside].z;
+	*a = destPose[usedside].a;
+}
+
+int commanderGetState()
+{
+	int usedside = st_side;
+	return Cstat[usedside].curStat;
+}
+
+void commanderSetState(int s)
+{
+	int usedside = st_side;
+	Cstat[usedside].curStat = s;
 }
 
 void commanderGetAltHold(bool* altHold, bool* setAltHold, float* altHoldChange)
@@ -178,7 +295,12 @@ void commanderGetRPYType(RPYType* rollType, RPYType* pitchType, RPYType* yawType
   *yawType   = stabilizationModeYaw;
 }
 
-void commanderGetThrust(uint16_t* thrust)
+int commanderGetCmdType()
+{
+	return cmdMode;
+}
+
+/*void commanderGetThrust(uint16_t* thrust)
 {
   int usedSide = side;
   uint16_t rawThrust = targetVal[usedSide].thrust;
@@ -205,11 +327,37 @@ void commanderGetThrust(uint16_t* thrust)
   }
 
   commanderWatchdog();
+}*/
+
+void commanderGetThrust(uint16_t* thrust, float yawR)
+{
+  int usedSide = side;
+  uint16_t rawThrust = thrst;
+
+  float yR = fabs(yawR);
+
+  if (yR > 1200.0)
+    start = 1;
+
+  if (start < 500*2 && start !=0 && rawThrust<11000)
+  {
+	if (yR < 20)
+	{
+		*thrust = 15000;
+		start += 1;
+	}
+  }
+  else
+  {
+    start = 0;
+    *thrust = rawThrust;
+  }
+  commanderWatchdog();
 }
 
 YawModeType commanderGetYawMode(void)
 {
-  return yawMode;
+  return DEFUALT_YAW_MODE;//yawMode;
 }
 
 bool commanderGetYawModeCarefreeResetFront(void)

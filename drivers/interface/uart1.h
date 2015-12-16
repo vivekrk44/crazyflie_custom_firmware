@@ -1,35 +1,10 @@
-/**
- *    ||          ____  _ __                           
- * +------+      / __ )(_) /_______________ _____  ___ 
- * | 0xBC |     / __  / / __/ ___/ ___/ __ `/_  / / _ \
- * +------+    / /_/ / / /_/ /__/ /  / /_/ / / /_/  __/
- *  ||  ||    /_____/_/\__/\___/_/   \__,_/ /___/\___/
- *
- * Crazyflie control firmware
- *
- * Copyright (C) 2011-2012 Bitcraze AB
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, in version 3.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- *
- * uart1.h - uart1 driver for deck port
- */
 #ifndef UART1_H_
 #define UART1_H_
 
 #include <stdbool.h>
 #include "eprintf.h"
 
-#define UART1_BAUDRATE         115200
+#define UART1_BAUDRATE         100000
 
 #define UART1_TYPE             UART4
 #define UART1_PERIF            RCC_APB1Periph_UART4
@@ -48,6 +23,27 @@
 #define UART1_GPIO_AF_RX_PIN   GPIO_PinSource11
 #define UART1_GPIO_AF_TX       GPIO_AF_UART4
 #define UART1_GPIO_AF_RX       GPIO_AF_UART4
+
+#define SB                     0x0F
+#define EBA                    0xBF
+#define EBB                    0x00
+#define EBC                    0x01
+#define EBD                    0b00101100
+
+#define SBMRP                  30  //SBus Max Roll Pitch
+#define SBMY                   200 // SBus Max Yaw
+#define SBMT                   65000 // SBus Max Thrust
+
+static float roll;
+static float pitch;
+static float yaw;
+static uint16_t thrust;
+
+static int updated;
+
+int getSBusUpdate();
+void setSBusUpdate(int val);
+void getSBusVals(float* r, float* p, float* y, uint16_t* t);
 
 /**
  * Initialize the UART.
@@ -78,6 +74,8 @@ void uart1SendData(uint32_t size, uint8_t* data);
  */
 int uart1Putchar(int ch);
 
+uint8_t convertLE(uint8_t c);
+
 /**
  * Uart printf macro that uses eprintf
  * @param[in] FMT String format
@@ -86,5 +84,6 @@ int uart1Putchar(int ch);
  * @note If UART Crtp link is activated this function does nothing
  */
 #define uart1Printf(FMT, ...) eprintf(uart1Putchar, FMT, ## __VA_ARGS__)
+
 
 #endif /* UART1_H_ */

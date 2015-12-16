@@ -38,6 +38,13 @@
 #define COMMANDER_WDT_TIMEOUT_STABALIZE  M2T(500)
 #define COMMANDER_WDT_TIMEOUT_SHUTDOWN   M2T(2000)
 
+//Get the command mode
+typedef enum
+{
+	ATTI = 0,
+	POSI = 1,
+} cmdType;
+
 /**
  * Stabilization modes for Roll, Pitch, Yaw.
  */
@@ -63,11 +70,18 @@ void commanderWatchdog(void);
 uint32_t commanderGetInactivityTime(void);
 void commanderGetRPY(float* eulerRollDesired, float* eulerPitchDesired, float* eulerYawDesired);
 void commanderGetRPYType(RPYType* rollType, RPYType* pitchType, RPYType* yawType);
-void commanderGetThrust(uint16_t* thrust);
+void commanderGetXYZA(float* x, float* y, float* z, float* a);
+void commanderGetDest(float* x, float* y, float* z, float* a);
+//void commanderGetThrust(uint16_t* thrust);
+void commanderGetThrust(uint16_t* thrust, float yawR);
 void commanderGetAltHold(bool* altHold, bool* setAltHold, float* altHoldChange);
 bool commanderGetAltHoldMode(void);
 void commanderSetAltHoldMode(bool altHoldModeNew);
 YawModeType commanderGetYawMode(void);
 bool commanderGetYawModeCarefreeResetFront(void);
 
+//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+int commanderGetCmdType();
+void getcurrPose(float* x, float* y, float* z, float* a);
+void getdestPose(float* x, float* y, float* z, float* a);
 #endif /* COMMANDER_H_ */
