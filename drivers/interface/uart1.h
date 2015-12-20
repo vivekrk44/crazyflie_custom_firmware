@@ -44,6 +44,7 @@ static int updated;
 int getSBusUpdate();
 void setSBusUpdate(int val);
 void getSBusVals(float* r, float* p, float* y, uint16_t* t);
+uint16_t getSBusChannel(uint8_t chno);
 
 /**
  * Initialize the UART.

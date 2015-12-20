@@ -202,27 +202,26 @@ uint32_t commanderGetInactivityTime(void)
 void commanderGetRPY(float* eulerRollDesired, float* eulerPitchDesired, float* eulerYawDesired)
 {
   int usedSide = side;
-  if(rf_update == 1)
+  uint16_t chval = getSBusChannel(5);
+  if(chval<1050)
   {
 	  *eulerRollDesired  = targetVal[usedSide].roll;
 	  *eulerPitchDesired = targetVal[usedSide].pitch;
 	  *eulerYawDesired   = targetVal[usedSide].yaw;
 	  thrst              = targetVal[usedSide].thrust;
+	  rf_update = 0;
   }
   else
   {
-	  if(getSBusUpdate() == 1)
-	  {
-		  float pi, ro, ya;
-		  getSBusVals(&ro, &pi, &ya, &thrst);
-		  *eulerPitchDesired = pi;
-		  *eulerRollDesired = ro;
-		  *eulerYawDesired = ya;
-		  setSBusUpdate(0);
-		  commanderWatchdogReset();
-	  }
+	  float pi, ro, ya;
+	  getSBusVals(&ro, &pi, &ya, &thrst);
+	  *eulerPitchDesired = pi;
+	  *eulerRollDesired = ro;
+	  *eulerYawDesired = ya;
+	  setSBusUpdate(0);
+	  commanderWatchdogReset();
   }
-  rf_update = 0;
+
 }
 
 void commanderGetXYZA(float* x, float* y, float* z, float* a)

@@ -82,6 +82,7 @@ struct sbus_dat {
 	unsigned int ch9  : 11;
 	unsigned int ch10 : 11;
 	unsigned int ch11 : 11;
+	unsigned int ch12 : 11;
 } __attribute__((__packed__));
 
 typedef union {
@@ -210,6 +211,14 @@ void uart1RxTask(void *param)
 				  sbusCh[2] = sbus.chd.ch2;//sbus.chd.ch2;//((sbusBuffer[2]>>6 | sbusBuffer[3]<<2 | sbusBuffer[4]<<10) & 0x07FF);
 				  sbusCh[3] = sbus.chd.ch3;//sbus.chd.ch3;//((sbusBuffer[4]>>1 | sbusBuffer[5]<<7)                     & 0x07FF);
 				  sbusCh[4] = sbus.chd.ch4;//((sbusBuffer[5]>>4 | sbusBuffer[6]<<4)                     & 0x07FF);
+				  sbusCh[5] = sbus.chd.ch5;
+				  sbusCh[6] = sbus.chd.ch6;
+				  sbusCh[7] = sbus.chd.ch7;
+				  sbusCh[8] = sbus.chd.ch8;
+				  sbusCh[9] = sbus.chd.ch9;
+				  sbusCh[10] = sbus.chd.ch10;
+				  sbusCh[11] = sbus.chd.ch11;
+				  sbusCh[12] = sbus.chd.ch12;
 
 				  roll  = ((sbusCh[0] - 1024)/336.0f)*SBMRP;
 				  pitch = ((sbusCh[1] - 1024)/336.0f)*SBMRP;
@@ -259,6 +268,11 @@ void getSBusVals(float* r, float* p, float* y, uint16_t* t)
 	*p = pitch;
 	*r = roll;
 	*y = yaw;
+}
+
+uint16_t getSBusChannel(uint8_t chno)
+{
+	return sbusCh[chno-1];
 }
 
 static portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
