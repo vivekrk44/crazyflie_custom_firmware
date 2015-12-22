@@ -20,18 +20,14 @@ void dwm_init()
 
     uint32_t dev_id = dwt_readdevid();
     if(dev_id != 0xDECA0130)
-    	//while (1); // Error
+    	while (dwt_readdevid() != 0xDECA0130); // Error
 
-    dwt_setinterrupt(DWT_INT_RFCG, 1);
+    dwt_setinterrupt(DWT_INT_RFCG | DWT_INT_RPHE | DWT_INT_RFCE | DWT_INT_SFDT | DWT_INT_RXPTO, 1);
     dwt_setcallbacks(int_tx, int_rx);
 
     int use_otpdata = DWT_LOADANTDLY | DWT_LOADXTALTRIM;
 
     dwt_setdblrxbuffmode (0);
-    dwt_enableframefilter(DWT_FF_COORD_EN);
-    dwt_setpanid(0x000A);
-    dwt_setaddress16(0x0009);
-
     //dwt_initialise(use_otpdata);
 
     dwm_conf.chan           = channelNo;
@@ -45,7 +41,13 @@ void dwm_init()
     dwm_conf.phrMode        = phrMo;
     dwm_conf.sfdTO          = SFDto;
     dwt_configure(&dwm_conf, use_otpdata);
+    dwt_setautorxreenable(1); //Auto Re-enable Enable
+    dwt_setpreambledetecttimeout(0); //Timeout disabled
 
+    dwt_setpanid(0xAAAA);
+    dwt_setaddress16(0xBBBB);
+
+    dwt_enableframefilter(DWT_FF_DATA_EN | DWT_FF_COORD_EN);
 
     dwt_setrxtimeout(0);
     int rx_stat = dwt_rxenable(0);
@@ -85,7 +87,7 @@ void setup_irq()
 
     SYSCFG_EXTILineConfig(DWMEXTI_SRC, DWMEXTI_PIN);
 
-    EXTI_InitStruct.EXTI_Trigger = EXTI_Trigger_Rising;
+    EXTI_InitStruct.EXTI_Trigger = EXTI_Trigger_Rising_Falling;
     EXTI_InitStruct.EXTI_Mode = EXTI_Mode_Interrupt;
     EXTI_InitStruct.EXTI_LineCmd = ENABLE;
     EXTI_InitStruct.EXTI_Line = DWMEXTI_LINE;
@@ -111,11 +113,16 @@ void int_rx(const dwt_callback_data_t *rxd)
 	uint8_t event;
 	uint8_t aack;
 	uint8_t dblbf;
+	uint16_t length;
 
 	stat = rxd->status;
 	event = rxd->event;
 	aack = rxd->aatset;
 	dblbf = rxd->dblbuff;
+	length = rxd->datalength;
+
+	if(event == DWT_SIG_RX_OKAY)
+		while(1);
 
 	//Dont know what to do :(
 }
