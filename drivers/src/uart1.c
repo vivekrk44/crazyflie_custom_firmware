@@ -66,7 +66,7 @@ uint8_t state = 0;
 
 uint8_t sbusBuffer[25];
 uint8_t datBuffer[300];
-int16_t sbusCh[20];
+static uint16_t sbusCh[20];
 
 uint8_t failsafe;
 

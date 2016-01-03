@@ -135,6 +135,16 @@ void controllerCorrectAttitudePID(
   *yawRateDesired = pidUpdate(&pidYaw, eulerYawActual, false);
 }
 
+void controllerSetPID(float p, float i, float d)
+{
+	pidSetKp(&pidRollRate, p);
+	pidSetKi(&pidRollRate, i);
+	pidSetKd(&pidRollRate, d);
+	pidSetKp(&pidPitchRate, p);
+	pidSetKi(&pidPitchRate, i);
+	pidSetKd(&pidPitchRate, d);
+}
+
 void controllerCorrectPositionPID(
 		float xC, float yC, float zC,
 		float xD, float yD, float zD,

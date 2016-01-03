@@ -57,6 +57,8 @@ void controllerCorrectRatePID(
  */
 void controllerResetAllPID(void);
 
+void controllerSetPID(float p, float i, float d);
+
 /**
  * Get the actuator output.
  */

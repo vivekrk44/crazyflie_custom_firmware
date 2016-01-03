@@ -32,6 +32,8 @@
 #include "configblock.h"
 #include "param.h"
 #include "uart1.h"
+#include "pid.h"
+#include "controller.h"
 
 #include <math.h>
 
@@ -223,6 +225,15 @@ void commanderGetRPY(float* eulerRollDesired, float* eulerPitchDesired, float* e
 		stabilizationModeRollPitch = RATE;
 	  else
 	  	stabilizationModeRollPitch = ANGLE;
+	  uint16_t pr = getSBusChannel(6);
+	  uint16_t in = getSBusChannel(7);
+	  uint16_t de = getSBusChannel(8);
+
+	  float pro = mep((float)pr, 352.0, 1696.0, 0.0, 200.0);
+	  float ine = mep((float)in, 352.0, 1696.0, 0.0, 20.0);
+	  float der = mep((float)de, 352.0, 1696.0, 0.0, 20.0);
+
+	  controllerSetPID(pro, ine, der);
 
 	  float pi, ro, ya;
 	  getSBusVals(&ro, &pi, &ya, &thrst);

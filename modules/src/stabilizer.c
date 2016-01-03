@@ -151,7 +151,7 @@ static bool isInit;
 
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 static uint16_t useNL = 0;
-static uint16_t setMO = 1;
+static uint16_t setMO = 0;
 int mulAN = 3;
 uint16_t requiredThrust;
 #define POSITION_UPDATE_RATE_DIVIDER  15
