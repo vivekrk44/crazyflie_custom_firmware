@@ -48,7 +48,7 @@
 #else
   #include "lps25h.h"
 #endif
-
+#include "dwm.h"
 
 #undef max
 #define max(a,b) ((a) > (b) ? (a) : (b))
@@ -252,6 +252,8 @@ static void stabilizerTask(void* param)
   uint32_t altHoldCounter = 0;
   uint32_t lastWakeTime;
   float yawRateAngle = 0;
+  float pitchRateAngle = 0;
+  float rollRateAngle = 0;
   init_nl_controller();
   DEBUG_PRINT("Got nl init");
   vTaskSetApplicationTaskTag(0, (void*)TASK_STABILIZER_ID_NBR);
@@ -312,6 +314,22 @@ static void stabilizerTask(void* param)
 
         eulerYawDesired = -yawRateAngle;
       }
+      if(pitchType = RATE) {
+       	  pitchRateAngle += eulerPitchDesired/3;
+       	  if (pitchRateAngle > 40.0)
+       		  pitchRateAngle = 40;
+       	  if (pitchRateAngle < -40.0)
+       		  pitchRateAngle = -40;
+       	  eulerPitchDesired = pitchRateAngle;
+         }
+         if(rollType = RATE) {
+       	  rollRateAngle += eulerRollDesired/3;
+       	  if (rollRateAngle > 40.0)
+       		  rollRateAngle = 40;
+       	  if (rollRateAngle < -40.0)
+       		  rollRateAngle = -40;
+       	  eulerRollDesired = rollRateDesired;
+         }
 
       // 250HZ
       if (++attitudeCounter >= ATTITUDE_UPDATE_RATE_DIVIDER)
@@ -392,6 +410,9 @@ static void stabilizerTask(void* param)
         	positionCounter = 0;
 
         }
+        controllerCorrectAttitudePID(eulerRollActual, eulerPitchActual, eulerYawActual,
+                                             eulerRollDesired, eulerPitchDesired, -eulerYawDesired,
+                                             &rollRateDesired, &pitchRateDesired, &yawRateDesired);
         attitudeCounter = 0;
 
         /* Call out after performing attitude updates, if any functions would like to use the calculated values. */
@@ -405,14 +426,14 @@ static void stabilizerTask(void* param)
         altHoldCounter = 0;
       }
 
-      if (rollType == RATE)
+      /*if (rollType == RATE)
       {
         rollRateDesired = eulerRollDesired;
       }
       if (pitchType == RATE)
       {
         pitchRateDesired = eulerPitchDesired;
-      }
+      }*/
 
       // TODO: Investigate possibility to subtract gyro drift.
       controllerCorrectRatePID(gyro.x, -gyro.y, gyro.z,
@@ -490,6 +511,8 @@ static void stabilizerTask(void* param)
 
         // Reset the calculated YAW angle for rate control
         yawRateAngle = eulerYawActual;
+        pitchRateAngle  = 0.0;
+        rollRateAngle = 0.0;
       }
     }
   }

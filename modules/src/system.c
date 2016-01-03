@@ -141,7 +141,7 @@ void systemTask(void *arg)
 #endif
 
 uartInit();
-dwm_init();
+
 #ifdef ENABLE_UART1
   uart1Init();
 #endif
@@ -184,7 +184,7 @@ dwm_init();
 #endif
   pass &= memTest();
   pass &= watchdogNormalStartTest();
-
+  dwm_init();
   //Start the firmware
   if(pass)
   {

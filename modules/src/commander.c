@@ -67,6 +67,11 @@ struct StateCrtp
 	int curStat;
 };
 
+float mep(float x, float ma, float Ma, float mb, float Mb)
+{
+	return (x - ma) *  (Mb - mb) / (Ma - ma) + mb;
+}
+
 static struct CommanderCrtpValues targetVal[2];
 static struct MocapCrtp mocapPose[2];
 static struct DestCrtp destPose[2];
@@ -85,6 +90,7 @@ static bool altHoldMode = false;
 static bool altHoldModeOld = false;
 static uint16_t thrst;
 
+static RPYType stabilizationModeRollPitch  = ANGLE;
 static RPYType stabilizationModeRoll  = ANGLE; // Current stabilization type of roll (rate or angle)
 static RPYType stabilizationModePitch = ANGLE; // Current stabilization type of pitch (rate or angle)
 static RPYType stabilizationModeYaw   = RATE;  // Current stabilization type of yaw (rate or angle)
@@ -203,7 +209,7 @@ void commanderGetRPY(float* eulerRollDesired, float* eulerPitchDesired, float* e
 {
   int usedSide = side;
   uint16_t chval = getSBusChannel(5);
-  if(chval<1050)
+  if(chval<1020)
   {
 	  *eulerRollDesired  = targetVal[usedSide].roll;
 	  *eulerPitchDesired = targetVal[usedSide].pitch;
@@ -213,6 +219,11 @@ void commanderGetRPY(float* eulerRollDesired, float* eulerPitchDesired, float* e
   }
   else
   {
+	  if(chval < 1030)
+		stabilizationModeRollPitch = RATE;
+	  else
+	  	stabilizationModeRollPitch = ANGLE;
+
 	  float pi, ro, ya;
 	  getSBusVals(&ro, &pi, &ya, &thrst);
 	  *eulerPitchDesired = pi;
@@ -289,8 +300,8 @@ void commanderSetAltHoldMode(bool altHoldModeNew)
 
 void commanderGetRPYType(RPYType* rollType, RPYType* pitchType, RPYType* yawType)
 {
-  *rollType  = stabilizationModeRoll;
-  *pitchType = stabilizationModePitch;
+  *rollType  = stabilizationModeRollPitch;
+  *pitchType = stabilizationModeRollPitch;
   *yawType   = stabilizationModeYaw;
 }
 

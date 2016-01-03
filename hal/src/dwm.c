@@ -9,8 +9,11 @@
 #include "spi1.h"
 #include "debug.h"
 #include "deca_device_api.h"
-
-
+#include "cfassert.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "semphr.h"
+#include "queue.h"
 
 void dwm_init()
 {
@@ -19,8 +22,8 @@ void dwm_init()
     setup_reset();
 
     uint32_t dev_id = dwt_readdevid();
-    if(dev_id != 0xDECA0130)
-    	while (dwt_readdevid() != 0xDECA0130); // Error
+    //if(dev_id != 0xDECA0130)
+    	//while (dwt_readdevid() != 0xDECA0130); // Error
 
     dwt_setinterrupt(DWT_INT_RFCG | DWT_INT_RPHE | DWT_INT_RFCE | DWT_INT_SFDT | DWT_INT_RXPTO, 1);
     dwt_setcallbacks(int_tx, int_rx);
@@ -49,11 +52,28 @@ void dwm_init()
 
     dwt_enableframefilter(DWT_FF_DATA_EN | DWT_FF_COORD_EN);
 
+    dwt_configeventcounters(1);
+
     dwt_setrxtimeout(0);
     int rx_stat = dwt_rxenable(0);
     if(rx_stat)
     	while(1);
-    
+    //xTaskCreate(dwmTask, (const signed char * const)"DWM-Checker", 100, NULL, /*priority*/4, NULL);
+}
+
+void dwmTask(void* param)
+{
+	dwt_deviceentcnts_t counter;
+	dwt_readeventcounters(&counter);
+	uint16_t PHE = counter.PHE;
+	uint16_t RSL = counter.RSL;
+	uint16_t CRCG = counter.CRCG;
+	uint16_t ARFE = counter.ARFE;
+	uint16_t SFDTO = counter.SFDTO;
+	uint16_t PTO = counter.PTO;
+	uint16_t RTO = counter.RTO;
+	uint16_t TXF = counter.TXF;
+	vTaskDelay(100);
 }
 
 void setup_reset()

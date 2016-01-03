@@ -68,6 +68,7 @@ uint8_t sbusBuffer[25];
 uint8_t datBuffer[300];
 int16_t sbusCh[20];
 
+uint8_t failsafe;
 
 struct sbus_dat {
 	unsigned int ch0  : 11;
@@ -231,6 +232,8 @@ void uart1RxTask(void *param)
 
 				  thrust = maxx(minn(thrust, SBMT), -SBMT);
 				  yaw = maxx(minn(yaw, SBMY), -SBMY);
+				  failsafe = 0x00;
+				  failsafe = flag & 0x04;
 
 				  updated  = 1;
 
@@ -272,7 +275,10 @@ void getSBusVals(float* r, float* p, float* y, uint16_t* t)
 
 uint16_t getSBusChannel(uint8_t chno)
 {
-	return sbusCh[chno-1];
+	if(failsafe)
+		return 0;
+	else
+		return sbusCh[chno-1];
 }
 
 static portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;

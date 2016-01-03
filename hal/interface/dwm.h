@@ -15,6 +15,8 @@ void setup_irq();
 void setup_reset();
 void reset_DW1000();
 
+void dwmTask(void*);
+
 void int_tx(const dwt_callback_data_t *rxd);
 void int_rx(const dwt_callback_data_t *txd);
 
