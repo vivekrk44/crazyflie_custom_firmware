@@ -38,7 +38,7 @@
 #endif
 
 #ifndef DECK_FORCE
-#define DECK_FORCE
+#define DECK_FORCE bcBigQuad
 #endif
 
 #define xstr(s) str(s)

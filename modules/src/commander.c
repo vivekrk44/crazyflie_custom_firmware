@@ -34,6 +34,7 @@
 #include "uart1.h"
 #include "pid.h"
 #include "controller.h"
+#include "debug.h"
 
 #include <math.h>
 
@@ -232,7 +233,7 @@ void commanderGetRPY(float* eulerRollDesired, float* eulerPitchDesired, float* e
 	  float pro = mep((float)pr, 352.0, 1696.0, 0.0, 200.0);
 	  float ine = mep((float)in, 352.0, 1696.0, 0.0, 20.0);
 	  float der = mep((float)de, 352.0, 1696.0, 0.0, 20.0);
-
+	  DEBUG_PRINT("P - %f", pro);
 	  controllerSetPID(pro, ine, der);
 
 	  float pi, ro, ya;

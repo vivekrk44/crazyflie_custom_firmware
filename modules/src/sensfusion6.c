@@ -288,14 +288,14 @@ void sensorfusionGetcurrXYZ(state* pos, state* vel, state* acc, state* ppos, sta
 		r = roll * cos((-yaw)*M_PI/180.0f) - pitch * sin((-yaw)*M_PI/180.0f);
 		p = roll * sin((-yaw)*M_PI/180.0f) + pitch * cos((-yaw)*M_PI/180.0f);
 
-		pos->x = ppos->x + (pvel->x * dt) + (0.5 * dt * dt * (acc->z + 9.8) * tan(p*M_PI/180.0f));
-		pos->y = ppos->y + (pvel->y * dt) + (0.5 * dt * dt * (acc->z + 9.8) * tan(r*M_PI/180.0f));
+		pos->x = ppos->x + (pvel->x * dt) + (0.5 * dt * dt * (acc->z + 9.8) * tan(p*M_PI/180.0f)); //s(t) = s(t-1) + u(t-1)*dt + 0.5*a(t)*a(t)
+		pos->y = ppos->y + (pvel->y * dt) + (0.5 * dt * dt * (acc->z + 9.8) * tan(r*M_PI/180.0f)); //s(t) = s(t-1) + u(t-1)*dt + 0.5*a(t)*a(t)
 
-		vel->x = (pos->x - ppos->x)/dt;
-		vel->y = (pos->y - ppos->y)/dt;
+		vel->x = pvel->x + ((acc->z + 9.8) * tan(p*M_PI/180.0f) * dt);//(pos->x - ppos->x)/dt; v(t-1) = u(t-1) + a(t) * dt
+		vel->y = pvel->y + ((acc->z + 9.8) * tan(r*M_PI/180.0f) * dt);//(pos->y - ppos->y)/dt; v(t-1) = u(t-1) + a(t) * dt
 
-		acc->x = (vel->x - pvel->x)/dt;
-		acc->y = (vel->y - pvel->y)/dt;
+		acc->x = (acc->z + 9.8) * tan(p*M_PI/180.0f) * dt;//(vel->x - pvel->x)/dt;
+		acc->y = (acc->z + 9.8) * tan(r*M_PI/180.0f) * dt;//(vel->y - pvel->y)/dt;
 
 		ppos->x = pos->x;
 		ppos->y = pos->y;
